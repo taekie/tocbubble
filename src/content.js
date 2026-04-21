@@ -50,6 +50,14 @@
     .getElementById("namu-voronoi-close")
     .addEventListener("click", () => setSidebarOpen(false));
 
+  // 사이드바·토글버튼 외부 클릭 시 닫기
+  document.addEventListener("click", (e) => {
+    if (!isOpen) return;
+    if (sidebar.contains(e.target)) return;
+    if (toggleBtn.contains(e.target)) return;
+    setSidebarOpen(false);
+  }, true);
+
   // ─── 2. 라이브러리 로드 ───────────────────────────────────
   // ES module이므로 dynamic import() 사용
   let _VoronoiTreemap = null;
@@ -70,7 +78,11 @@
 
   function parseTOCWikipedia() {
     // 위키백과 구조: h2/h3/h4 자체에 id 있음, 본문은 .mw-parser-output 내부
-    const container = document.querySelector(".mw-parser-output");
+    // 여러 개일 경우 h2가 가장 많은 컨테이너 사용
+    const containers = Array.from(document.querySelectorAll(".mw-parser-output"));
+    const container = containers.reduce((best, c) =>
+      c.querySelectorAll("h2[id]").length > (best?.querySelectorAll("h2[id]").length ?? 0) ? c : best
+    , null);
     if (!container) return [];
 
     const headings = Array.from(
@@ -224,22 +236,42 @@
     return document.title.replace(/\s*[-–|].*$/, "").trim();
   }
 
+  // fragment 내 유효한 본문 이미지 URL 반환
+  function pickImageUrl(fragment) {
+    const imgs = Array.from(fragment.querySelectorAll('img[src]'));
+    for (const img of imgs) {
+      const src = img.getAttribute('src') || img.src || '';
+      if (!src || src.startsWith('data:')) continue;
+      // UI/아이콘 이미지 제외
+      if (src.includes('/skins/')) continue;
+      const w = parseInt(img.getAttribute('width') || img.width || '0');
+      const h = parseInt(img.getAttribute('height') || img.height || '0');
+      if ((w > 0 && w <= 20) || (h > 0 && h <= 20)) continue;
+      // 나무위키: data-doc 속성이 있는 본문 이미지만 허용
+      if (!isWikipedia && !img.hasAttribute('data-doc')) continue;
+      const absUrl = src.startsWith('//') ? 'https:' + src : src;
+      return absUrl;
+    }
+    return null;
+  }
+
   // 컨테이너 시작 ~ 첫 헤딩 사이 도입부 이미지 URL 반환
   function getLeadImageUrl(container, firstHeadingEl) {
     try {
+      let searchRoot = container;
+      if (!isWikipedia && firstHeadingEl) {
+        // 나무위키: 첫 헤딩의 가장 가까운 공통 조상(h2의 조상 체인 최상위 중 body 바로 아래) 사용
+        // body 직접 자식 div 중 firstHeadingEl을 포함하는 것
+        const bodyChildren = Array.from(document.body.children);
+        const ancestor = bodyChildren.find(c => c.contains(firstHeadingEl));
+        if (ancestor) searchRoot = ancestor;
+      }
       const range = document.createRange();
-      range.setStart(container, 0);
+      range.setStart(searchRoot, 0);
       if (firstHeadingEl) range.setEndBefore(firstHeadingEl);
-      else range.setEndAfter(container);
+      else range.setEndAfter(searchRoot);
       const fragment = range.cloneContents();
-      const img = fragment.querySelector('img[src]');
-      if (!img) return null;
-      const src = img.src || img.getAttribute('src') || '';
-      if (src.startsWith('data:')) return null;
-      const w = parseInt(img.width || img.getAttribute('width') || '100');
-      const h = parseInt(img.height || img.getAttribute('height') || '100');
-      if (w <= 20 || h <= 20) return null;
-      return src.startsWith('//') ? 'https:' + src : src;
+      return pickImageUrl(fragment);
     } catch (e) {
       return null;
     }
