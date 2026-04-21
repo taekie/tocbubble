@@ -4,8 +4,6 @@
   "version": "0.2.0",
   "description": "위키 페이지 목차를 Voronoi Treemap 버블맵으로 시각화",
 
-  "permissions": ["activeTab"],
-
   "content_scripts": [
     {
       "matches": ["*://namu.wiki/*", "*://*.wikipedia.org/wiki/*"],
@@ -17,7 +15,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["lib/voronoi-treemap.standalone.js"],
+      "resources": ["lib/voronoi-bubble.standalone.js"],
       "matches": ["<all_urls>"]
     }
   ],

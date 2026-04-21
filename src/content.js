@@ -55,7 +55,7 @@
   let _VoronoiTreemap = null;
   async function loadLib() {
     if (_VoronoiTreemap) return _VoronoiTreemap;
-    const libUrl = chrome.runtime.getURL("lib/voronoi-treemap.standalone.js");
+    const libUrl = chrome.runtime.getURL("lib/voronoi-bubble.standalone.js");
     const mod = await import(libUrl);
     _VoronoiTreemap = mod.VoronoiTreemap ?? mod.default;
     return _VoronoiTreemap;
@@ -80,6 +80,9 @@
     );
 
     if (headings.length === 0) return [];
+
+    // 첫 헤딩 이전 도입부 크기
+    const introSize = getLeadSectionSize(container, headings[0]);
 
     // 순서 기반 numbering 생성
     const counters = [0, 0, 0]; // h2, h3, h4
@@ -123,10 +126,22 @@
         level,
         title,
         numbering,
-        size: Math.max(1, Math.round(charCount / 50)),
+        size: sizeFromChars(charCount),
+        imageUrl: getSectionImageUrl(el, nextSameOrHigher || null),
       };
     });
 
+    if (introSize > 1) {
+      sized.unshift({
+        el: container,
+        id: "",
+        level: 2,
+        title: getPageTitle(),
+        numbering: "",
+        size: introSize,
+        imageUrl: getLeadImageUrl(container, headings[0]),
+      });
+    }
     return buildVoronoiItems(sized);
   }
 
@@ -178,10 +193,96 @@
         .slice(i + 1)
         .find((nh) => nh.level <= h.level);
       const charCount = getSectionTextLength(h.el, nextSameOrHigher?.el || null);
-      return { ...h, size: Math.max(1, Math.round(charCount / 50)) };
+      return { ...h, size: sizeFromChars(charCount) };
     });
 
+    const firstEl = headings[0]?.el;
+    // 나무위키 본문 컨테이너: 첫 헤딩의 조상 중 가장 가까운 section/article/div
+    const namuContainer =
+      firstEl?.closest('article, [class*="article"], [class*="content"]') ||
+      document.body;
+    const introSize2 = firstEl ? getLeadSectionSize(namuContainer, firstEl) : 1;
+    if (introSize2 > 1) {
+      sized.unshift({
+        el: document.body,
+        id: "",
+        level: 2,
+        title: getPageTitle(),
+        numbering: "",
+        size: introSize2,
+        imageUrl: getLeadImageUrl(namuContainer, firstEl),
+      });
+    }
     return buildVoronoiItems(sized);
+  }
+
+  // 페이지 제목 (사이트명 제거)
+  function getPageTitle() {
+    const h1 = document.querySelector("h1");
+    if (h1) return h1.textContent.trim();
+    // document.title에서 " - 사이트명" 제거
+    return document.title.replace(/\s*[-–|].*$/, "").trim();
+  }
+
+  // 컨테이너 시작 ~ 첫 헤딩 사이 도입부 이미지 URL 반환
+  function getLeadImageUrl(container, firstHeadingEl) {
+    try {
+      const range = document.createRange();
+      range.setStart(container, 0);
+      if (firstHeadingEl) range.setEndBefore(firstHeadingEl);
+      else range.setEndAfter(container);
+      const fragment = range.cloneContents();
+      const img = fragment.querySelector('img[src]');
+      if (!img) return null;
+      const src = img.src || img.getAttribute('src') || '';
+      if (src.startsWith('data:')) return null;
+      const w = parseInt(img.width || img.getAttribute('width') || '100');
+      const h = parseInt(img.height || img.getAttribute('height') || '100');
+      if (w <= 20 || h <= 20) return null;
+      return src.startsWith('//') ? 'https:' + src : src;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 섹션 범위(startEl~endEl) 내 첫 번째 이미지 URL 반환
+  function getSectionImageUrl(startEl, endEl) {
+    try {
+      const range = document.createRange();
+      range.setStartAfter(startEl);
+      if (endEl) range.setEndBefore(endEl);
+      else range.setEndAfter(startEl.closest('article, .mw-parser-output, body') || document.body);
+      const fragment = range.cloneContents();
+      const img = fragment.querySelector('img[src]');
+      if (!img) return null;
+      const src = img.src || img.getAttribute('src') || '';
+      // data URI 제외, 소형 아이콘 제외 (width/height <= 20)
+      if (src.startsWith('data:')) return null;
+      const w = parseInt(img.width || img.getAttribute('width') || '100');
+      const h = parseInt(img.height || img.getAttribute('height') || '100');
+      if (w <= 20 || h <= 20) return null;
+      return src.startsWith('//') ? 'https:' + src : src;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 컨테이너 시작 ~ 첫 헤딩 사이 도입부 텍스트 크기
+  function getLeadSectionSize(container, firstHeadingEl) {
+    try {
+      const range = document.createRange();
+      range.setStart(container, 0);
+      range.setEndBefore(firstHeadingEl);
+      const text = range.toString().replace(/\s+/g, " ").trim();
+      return sizeFromChars(text.length);
+    } catch (e) {
+      return 1;
+    }
+  }
+
+  // 글자 수 → bubbleSize 변환 (sqrt 스케일링, 최대 100)
+  function sizeFromChars(n) {
+    return Math.max(1, Math.min(100, Math.round(Math.sqrt(n / 2))));
   }
 
   // Range API로 두 헤딩 사이 텍스트 길이 반환
@@ -189,9 +290,19 @@
     try {
       const range = document.createRange();
       range.setStartAfter(startEl);
-      if (endEl) range.setEndBefore(endEl);
-      else range.setEndAfter(document.body);
-      return range.toString().length;
+      if (endEl) {
+        range.setEndBefore(endEl);
+      } else {
+        // 마지막 섹션: 가장 가까운 공통 컨테이너 끝으로 제한
+        const container =
+          startEl.parentElement?.parentElement ||
+          startEl.parentElement ||
+          document.body;
+        range.setEndAfter(container);
+      }
+      // 공백 압축 후 길이 반환 (들여쓰기/줄바꿈 제거)
+      const text = range.toString().replace(/\s+/g, " ").trim();
+      return text.length;
     } catch (e) {
       return 0;
     }
@@ -211,7 +322,8 @@
       }
 
       // 번호 포함 표시 레이블
-      const labelOf = (item) => `${item.numbering}. ${item.title}`;
+      const labelOf = (item) =>
+        item.numbering ? `${item.numbering}. ${item.title}` : item.title;
 
       // h2 → region(depth:1), h3 → bigClusterLabel(depth:2), h4+ → clusterLabel(버블)
       return {
@@ -224,6 +336,7 @@
           title: h.title,
           level: h.level,
           numbering: h.numbering,
+          imageUrl: h.imageUrl || null,
         },
       };
     });
@@ -301,6 +414,10 @@
   }
 
   function navigateTo(sectionId) {
+    if (!sectionId) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     const el = document.getElementById(sectionId);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -344,9 +461,15 @@
         pebbleWidth: 5,
         showMetaLabel: true,
         regionPositions,
+        cellImage: (d) => {
+          if (d?.data?.id !== "") return null; // 도입 셀만 (id === "")
+          const url = d?.data?.imageUrl;
+          if (!url) return null;
+          return { url, mode: 'fill', opacity: 0.7, colorMode: 'tint' };
+        },
         clickFunc: (what) => {
           const id = what?.data?.data?.id;
-          if (id) navigateTo(id);
+          if (id !== undefined) navigateTo(id);
         },
       });
 
