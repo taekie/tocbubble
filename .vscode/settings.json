@@ -1,0 +1,13 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^python3 -m json\\.tool /Users/taekie/claudecode/나무위키보로노이목차/manifest\\.json$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "hexdump": true,
+    "/^python3 -m json\\.tool /Users/taekie/claudecode/나무위키보로노이목차/manifest\\.json > /dev/null && echo \"OK\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

@@ -1,0 +1,104 @@
+/* 사이드바 토글 버튼 */
+#namu-voronoi-toggle {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 99999;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px 0 0 6px;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  transition: background 0.2s;
+}
+#namu-voronoi-toggle:hover,
+#namu-voronoi-toggle.active {
+  background: #1d4ed8;
+}
+
+/* 사이드바 패널 */
+#namu-voronoi-sidebar {
+  position: fixed;
+  right: -970px;
+  top: 0;
+  width: 950px;
+  height: 100vh;
+  z-index: 99998;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.25s ease;
+  font-family:
+    "Pretendard",
+    -apple-system,
+    sans-serif;
+}
+#namu-voronoi-sidebar.open {
+  right: 0;
+}
+
+/* 헤더 */
+#namu-voronoi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: transparent;
+  border-bottom: none;
+  flex-shrink: 0;
+}
+#namu-voronoi-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+#namu-voronoi-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+#namu-voronoi-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* 차트 영역 */
+#namu-voronoi-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#namu-voronoi-chart {
+  flex: 1;
+  padding: 8px;
+}
+#namu-voronoi-chart {
+  zoom: 0.9;
+}
+#namu-voronoi-chart svg {
+  display: block;
+  background: transparent !important;
+}
+#namu-voronoi-chart svg > rect:first-child {
+  fill: transparent !important;
+}
+
+/* 버블맵 외곽 흰색 그림자 — cell 그룹 전체에 적용 */
+#namu-voronoi-chart svg .cell {
+  filter: drop-shadow(rgba(255, 255, 255, 0.95) 0px 0px 25px)
+    drop-shadow(rgb(255, 255, 255) 0px 0px 1px);
+}

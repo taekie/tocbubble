@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "TocBubble",
+  "version": "0.2.0",
+  "description": "위키 페이지 목차를 Voronoi Treemap 버블맵으로 시각화",
+
+  "permissions": ["activeTab"],
+
+  "content_scripts": [
+    {
+      "matches": ["*://namu.wiki/*", "*://*.wikipedia.org/wiki/*"],
+      "js": ["src/content.js"],
+      "css": ["src/sidebar.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/voronoi-treemap.standalone.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
